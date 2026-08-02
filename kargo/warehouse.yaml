@@ -1,0 +1,12 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: sample-api
+  namespace: sample-api-delivery
+spec:
+  subscriptions:
+    - image:
+        repoURL: 905418331655.dkr.ecr.us-east-1.amazonaws.com/sample-api
+        # Tags are git SHAs, not semver — pick by image build time.
+        imageSelectionStrategy: NewestBuild
+        discoveryLimit: 5

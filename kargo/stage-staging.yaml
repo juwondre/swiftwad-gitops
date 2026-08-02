@@ -1,0 +1,40 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: sample-api-delivery
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: sample-api
+      sources:
+        # Only freight that has passed through dev is eligible.
+        stages:
+          - dev
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ssh://git@github.com/juwondre/swiftwad-gitops.git
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: yaml-update
+          config:
+            path: ./repo/envs/staging/sample-api.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom("905418331655.dkr.ecr.us-east-1.amazonaws.com/sample-api").Tag }}
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: "kargo: promote sample-api to staging"
+        - uses: git-push
+          config:
+            path: ./repo
+        - uses: argocd-update
+          config:
+            apps:
+              - name: sample-api-staging

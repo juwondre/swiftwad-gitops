@@ -10,11 +10,14 @@ Deployment config for the vendor platform POC. ArgoCD (hub on `swiftwad-staging`
 - `bootstrap/` — ArgoCD install values, applied once by hand.
 - `docs/vendor-conformance.md` — requirements a service must meet before onboarding.
 
-## Promotion
+## Promotion (Kargo)
 
-Dev is continuous: merge to an app repo → CI pushes image → CI bumps `envs/dev/<app>.yaml` → ArgoCD syncs.
+CI only builds and pushes images. Kargo (on the staging cluster, `kargo/` dir here) watches ECR:
 
-Staging is a PR: copy the proven tag from `envs/dev/<app>.yaml` into `envs/staging/<app>.yaml`, open a PR, get it reviewed, merge. ArgoCD does the rest. (Kargo can automate this later; the layout already fits it.)
+- **dev** — auto-promotes every new image: Kargo commits the tag to `envs/dev/<app>.yaml` and triggers the ArgoCD sync.
+- **staging** — only freight that has passed dev is eligible; promotion is a manual approval (Kargo UI or a `Promotion` resource), after which Kargo does the same commit + sync against `envs/staging/<app>.yaml`.
+
+Kargo pushes via its own write deploy key; the promotion history is the git log.
 
 ## Bootstrap (once)
 

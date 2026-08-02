@@ -1,0 +1,15 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: sample-api-delivery
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: sample-api-delivery
+  namespace: sample-api-delivery
+spec:
+  promotionPolicies:
+    # New images flow to dev with no human involved; staging stays manual.
+    - stage: dev
+      autoPromotionEnabled: true

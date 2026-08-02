@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: sample-api-dev
   namespace: argocd
+  annotations:
+    kargo.akuity.io/authorized-stage: sample-api-delivery:dev
 spec:
   project: vendor-acme
   sources:
