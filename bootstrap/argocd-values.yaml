@@ -1,6 +1,11 @@
 # Helm values for the ArgoCD hub install on swiftwad-staging.
 # helm install argocd argo/argo-cd -n argocd --create-namespace -f bootstrap/argocd-values.yaml
 configs:
+  cm:
+    # Local login account for the Acme vendor (SSO group mapping is the
+    # real-project path; a local account keeps the POC self-contained).
+    accounts.acme-vendor: login
+
   params:
     # POC: no ingress/TLS in front, access via port-forward.
     server.insecure: true
@@ -11,6 +16,7 @@ configs:
       p, role:vendor-readonly, applications, get, vendor-acme/*, allow
       p, role:vendor-readonly, logs, get, vendor-acme/*, allow
       g, vendor-acme-users, role:vendor-readonly
+      g, acme-vendor, role:vendor-readonly
     policy.default: ""
 
 server:
