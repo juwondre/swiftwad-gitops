@@ -6,7 +6,7 @@ app:
 
 image:
   repository: 905418331655.dkr.ecr.us-east-1.amazonaws.com/sample-api
-  tag: 7c124a0a8aa826be8f4480053339e8e336c20023
+  tag: f35fb2a264d699dd61067f18604b9f40fde16886
 
 containerPort: 8080
 
