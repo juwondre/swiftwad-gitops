@@ -3,21 +3,16 @@
 app:
   name: sample-api
   team: acme-vendor
-
 image:
   repository: 905418331655.dkr.ecr.us-east-1.amazonaws.com/sample-api
-  tag: init
-
+  tag: 7c124a0a8aa826be8f4480053339e8e336c20023
 containerPort: 8080
-
 replicaCount: 1
-
 probes:
   liveness:
     path: /healthz
   readiness:
     path: /readyz
-
 resources:
   requests:
     cpu: 50m
@@ -25,9 +20,7 @@ resources:
   limits:
     cpu: 250m
     memory: 128Mi
-
 env:
   APP_ENV: dev
-
 pdb:
   enabled: false
