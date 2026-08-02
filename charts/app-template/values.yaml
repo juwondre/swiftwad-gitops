@@ -1,0 +1,98 @@
+# Defaults for the app-template chart.
+# Each service provides its own values file on top of this. Anything a vendor
+# app needs that isn't expressible here is a conversation with the platform
+# team, not a custom template.
+
+# -- Service identity. Set per app.
+app:
+  name: ""            # required, e.g. "billing-api"
+  team: ""            # required, owning vendor/team slug, used for labels
+
+image:
+  # Full ECR repository URI, no tag. e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com/billing-api
+  repository: ""
+  # Immutable tag set by CI (git SHA). "latest" is rejected by the schema.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+# Port the container listens on. Must be > 1024 (conformance doc §1).
+containerPort: 8080
+
+service:
+  port: 80
+
+# Probes are required — the schema fails without both paths (conformance doc §4).
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  # Optional: for slow starters. Set enabled: true and tune failureThreshold.
+  startup:
+    enabled: false
+    path: /healthz
+    failureThreshold: 30
+    periodSeconds: 5
+
+# Requests and limits are required (conformance doc §8).
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# Plain (non-secret) environment variables.
+# env:
+#   LOG_LEVEL: info
+#   FEATURE_X_ENABLED: "true"
+env: {}
+
+# Secrets pulled from AWS Secrets Manager via External Secrets Operator and
+# injected as env vars. Vendors list the env var name and the Secrets Manager
+# key; the platform provisions the secret itself.
+# externalSecrets:
+#   - envName: DATABASE_URL
+#     remoteKey: billing-api/database-url
+externalSecrets: []
+
+# IAM role for service account (IRSA). Set by platform team when the app
+# needs AWS API access; leave empty otherwise.
+serviceAccount:
+  roleArn: ""
+
+ingress:
+  enabled: false
+  host: ""            # e.g. billing.dev.example.com — set per environment overlay
+  path: /
+  className: alb
+  annotations: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+# PodDisruptionBudget — on by default so node rotations can't take out a service.
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# Ephemeral scratch space mounted at /tmp. Root filesystem is always read-only.
+scratchVolume:
+  sizeLimit: 256Mi
+
+# Termination grace period (conformance doc §5). Raise only with platform sign-off.
+terminationGracePeriodSeconds: 30
+
+# Security context is intentionally NOT configurable per app. Values here are
+# informational; the deployment template hardcodes the equivalent settings.
+# Exceptions go through the platform team.

@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-api-dev
+  namespace: argocd
+spec:
+  project: vendor-acme
+  sources:
+    - repoURL: https://github.com/juwondre/swiftwad-gitops
+      targetRevision: main
+      path: charts/app-template
+      helm:
+        valueFiles:
+          - $values/envs/dev/sample-api.yaml
+    - repoURL: https://github.com/juwondre/swiftwad-gitops
+      targetRevision: main
+      ref: values
+  destination:
+    name: swiftwad-dev
+    namespace: sample-api
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

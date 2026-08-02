@@ -1,0 +1,30 @@
+# Staging values for sample-api. image.tag changes land here via promotion PR
+# after the same tag is healthy in dev.
+app:
+  name: sample-api
+  team: acme-vendor
+
+image:
+  repository: 905418331655.dkr.ecr.us-east-1.amazonaws.com/sample-api
+  tag: init
+
+containerPort: 8080
+
+replicaCount: 2
+
+probes:
+  liveness:
+    path: /healthz
+  readiness:
+    path: /readyz
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+env:
+  APP_ENV: staging

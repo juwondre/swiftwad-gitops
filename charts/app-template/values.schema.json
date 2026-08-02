@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["app", "image", "containerPort", "probes", "resources"],
+  "properties": {
+    "app": {
+      "type": "object",
+      "required": ["name", "team"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9-]{0,50}[a-z0-9])?$",
+          "description": "DNS-safe service name"
+        },
+        "team": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/.+$",
+          "description": "Must be an ECR repository URI — external registries are not allowed"
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "not": { "enum": ["latest"] },
+          "description": "Immutable tag set by CI; 'latest' is rejected"
+        }
+      }
+    },
+    "containerPort": {
+      "type": "integer",
+      "minimum": 1025,
+      "maximum": 65535,
+      "description": "Non-privileged ports only"
+    },
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "probes": {
+      "type": "object",
+      "required": ["liveness", "readiness"],
+      "properties": {
+        "liveness": {
+          "type": "object",
+          "required": ["path"],
+          "properties": {
+            "path": { "type": "string", "pattern": "^/" }
+          }
+        },
+        "readiness": {
+          "type": "object",
+          "required": ["path"],
+          "properties": {
+            "path": { "type": "string", "pattern": "^/" }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "required": ["requests", "limits"],
+      "properties": {
+        "requests": {
+          "type": "object",
+          "required": ["cpu", "memory"]
+        },
+        "limits": {
+          "type": "object",
+          "required": ["cpu", "memory"]
+        }
+      }
+    },
+    "externalSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["envName", "remoteKey"],
+        "properties": {
+          "envName": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "remoteKey": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 120
+    }
+  }
+}

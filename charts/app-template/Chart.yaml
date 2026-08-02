@@ -1,0 +1,6 @@
+apiVersion: v2
+name: app-template
+description: Standard chart for vendor services. Apps onboard by supplying a values file, not manifests.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: vendor-acme
+  namespace: argocd
+spec:
+  description: Acme vendor services
+
+  # Only this gitops repo can be a source — a vendor can't point an app at
+  # their own repo full of manifests.
+  sourceRepos:
+    - https://github.com/juwondre/swiftwad-gitops
+
+  destinations:
+    - name: swiftwad-dev
+      namespace: sample-api
+    - name: in-cluster
+      namespace: sample-api
+
+  # Namespace creation only; everything else must be namespaced.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+    - group: networking.k8s.io
+      kind: NetworkPolicy

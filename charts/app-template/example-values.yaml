@@ -1,0 +1,47 @@
+# Example values file for a vendor service. Copy, rename to <service>-values.yaml
+# in the GitOps repo, and fill in. CI owns image.tag — never edit it by hand.
+
+app:
+  name: billing-api
+  team: acme-vendor
+
+image:
+  repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/billing-api
+  tag: 3f9c2e1a94b7d05c6e8f1a2b3c4d5e6f7a8b9c0d
+
+containerPort: 8080
+
+replicaCount: 2
+
+probes:
+  liveness:
+    path: /healthz
+  readiness:
+    path: /readyz
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+env:
+  LOG_LEVEL: info
+  AWS_REGION: us-east-1
+
+externalSecrets:
+  - envName: DATABASE_URL
+    remoteKey: billing-api/database-url
+  - envName: STRIPE_API_KEY
+    remoteKey: billing-api/stripe-api-key
+
+ingress:
+  enabled: true
+  host: billing.dev.example.com
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8

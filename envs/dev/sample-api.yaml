@@ -1,0 +1,33 @@
+# Dev values for sample-api. image.tag is owned by CI in the sample-api repo —
+# never edit it by hand.
+app:
+  name: sample-api
+  team: acme-vendor
+
+image:
+  repository: 905418331655.dkr.ecr.us-east-1.amazonaws.com/sample-api
+  tag: init
+
+containerPort: 8080
+
+replicaCount: 1
+
+probes:
+  liveness:
+    path: /healthz
+  readiness:
+    path: /readyz
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+env:
+  APP_ENV: dev
+
+pdb:
+  enabled: false

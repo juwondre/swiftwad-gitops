@@ -1,0 +1,20 @@
+# Helm values for the ArgoCD hub install on swiftwad-staging.
+# helm install argocd argo/argo-cd -n argocd --create-namespace -f bootstrap/argocd-values.yaml
+configs:
+  params:
+    # POC: no ingress/TLS in front, access via port-forward.
+    server.insecure: true
+
+  rbac:
+    # Vendors get read + log tailing on their own project's apps, nothing else.
+    policy.csv: |
+      p, role:vendor-readonly, applications, get, vendor-acme/*, allow
+      p, role:vendor-readonly, logs, get, vendor-acme/*, allow
+      g, vendor-acme-users, role:vendor-readonly
+    policy.default: ""
+
+server:
+  replicas: 1
+
+controller:
+  replicas: 1
