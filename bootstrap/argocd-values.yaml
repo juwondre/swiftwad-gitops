@@ -19,6 +19,14 @@ configs:
             orgs:
               - name: swiftwad
             teamNameField: slug
+      # Kargo's UI authenticates through this same Dex (PKCE public client),
+      # so both UIs share one OAuth app and one org gate.
+      staticClients:
+        - id: kargo
+          name: Kargo
+          public: true
+          redirectURIs:
+            - https://kargo.swiftwad.com/login
 
   params:
     # TLS terminates at the ALB; plain HTTP between ALB and argocd-server.

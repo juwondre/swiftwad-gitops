@@ -1,0 +1,40 @@
+# Non-secret helm values for the Kargo install on the hub cluster.
+# Secrets (admin password hash, token signing key) are passed as --set by the
+# bootstrap script and never live in git.
+# helm upgrade kargo oci://ghcr.io/akuity/kargo-charts/kargo -n kargo \
+#   -f bootstrap/kargo-values.yaml --set api.adminAccount.passwordHash=... --set api.adminAccount.tokenSigningKey=...
+api:
+  host: kargo.swiftwad.com
+
+  # SSO through ArgoCD's Dex — one OAuth app, one org gate, both UIs.
+  # Dex's static client "kargo" is registered in argocd-values.yaml.
+  oidc:
+    enabled: true
+    issuerURL: https://argocd.swiftwad.com/api/dex
+    clientID: kargo
+    additionalScopes:
+      - groups
+
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    pathType: Prefix
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:905418331655:certificate/0ae80028-4f78-4e82-ac89-10ec9480ef5f
+      alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:us-east-1:905418331655:regional/webacl/argocd-vendor-ui/0ce5aa76-3dd0-4793-9211-3a5585cc519f
+      # kargo-api serves its own (self-signed) TLS; ALB terminates public TLS
+      # and re-encrypts to the pod.
+      alb.ingress.kubernetes.io/backend-protocol: HTTPS
+      alb.ingress.kubernetes.io/healthcheck-protocol: HTTPS
+    tls:
+      # Public TLS terminates at the ALB with the ACM cert.
+      enabled: false
+
+controller:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::905418331655:role/kargo-controller-swiftwad-staging
