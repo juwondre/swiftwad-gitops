@@ -4,10 +4,6 @@ configs:
   cm:
     url: https://argocd.swiftwad.com
 
-    # Local login account for the Acme vendor. Kept as fallback until GitHub
-    # SSO is verified end-to-end, then removed.
-    accounts.acme-vendor: login
-
     # Vendors and staff log in with their GitHub identity; org team
     # membership arrives as groups ("swiftwad:<team-slug>") for RBAC.
     # Credentials come from Secrets Manager via ExternalSecret
@@ -39,7 +35,6 @@ configs:
       p, role:release-manager, logs, get, vendor-acme/*, allow
       g, swiftwad:vendor-acme, role:vendor-readonly
       g, swiftwad:engineering, role:release-manager
-      g, acme-vendor, role:vendor-readonly
     policy.default: ""
     scopes: "[groups]"
 
