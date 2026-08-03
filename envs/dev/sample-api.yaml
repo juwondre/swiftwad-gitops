@@ -5,7 +5,7 @@ app:
   team: acme-vendor
 image:
   repository: 905418331655.dkr.ecr.us-east-1.amazonaws.com/sample-api
-  tag: f1251695fed1f681c6145967d1671401bc7f15d1
+  tag: 6427a4458baf98495b93413d7d37b44022602541
 containerPort: 8080
 replicaCount: 1
 probes:
