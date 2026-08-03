@@ -1,0 +1,62 @@
+# Maps OIDC identities (GitHub org teams via Dex "groups" claim) to Kargo
+# permissions. Kargo resolves a logged-in user to ServiceAccounts whose
+# claim annotations match, and the user acts with those SAs' RBAC.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sso-release-managers
+  namespace: sample-api-delivery
+  annotations:
+    rbac.kargo.akuity.io/claim.groups: swiftwad:engineering
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sso-release-managers-admin
+  namespace: sample-api-delivery
+subjects:
+  - kind: ServiceAccount
+    name: sso-release-managers
+    namespace: sample-api-delivery
+roleRef:
+  kind: ClusterRole
+  name: kargo-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# kargo-admin covers project resources; the promote verb is granted by the
+# existing stage-promoter Role in this namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sso-release-managers-promote
+  namespace: sample-api-delivery
+subjects:
+  - kind: ServiceAccount
+    name: sso-release-managers
+    namespace: sample-api-delivery
+roleRef:
+  kind: Role
+  name: stage-promoter
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sso-vendor-viewers
+  namespace: sample-api-delivery
+  annotations:
+    rbac.kargo.akuity.io/claim.groups: swiftwad:vendor-acme
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sso-vendor-viewers
+  namespace: sample-api-delivery
+subjects:
+  - kind: ServiceAccount
+    name: sso-vendor-viewers
+    namespace: sample-api-delivery
+roleRef:
+  kind: ClusterRole
+  name: kargo-viewer
+  apiGroup: rbac.authorization.k8s.io
