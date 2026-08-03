@@ -14,6 +14,11 @@ api:
     clientID: kargo
     additionalScopes:
       - groups
+    # Cluster-scoped grants (e.g. listing projects) come from claim-mapped
+    # ServiceAccounts in this namespace — see kargo/rbac-sso.yaml.
+    globalServiceAccounts:
+      namespaces:
+        - kargo-global
 
   ingress:
     enabled: true

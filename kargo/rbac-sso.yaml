@@ -1,6 +1,69 @@
 # Maps OIDC identities (GitHub org teams via Dex "groups" claim) to Kargo
 # permissions. Kargo resolves a logged-in user to ServiceAccounts whose
 # claim annotations match, and the user acts with those SAs' RBAC.
+#
+# Cluster-scoped layer: SAs in kargo-global (registered via
+# api.oidc.globalServiceAccounts.namespaces) carry the cluster-wide grants —
+# the UI needs at least list on projects to render its landing page.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kargo-global
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sso-engineering-global
+  namespace: kargo-global
+  annotations:
+    rbac.kargo.akuity.io/claim.groups: swiftwad:engineering
+---
+# Platform staff get cluster-wide kargo-admin.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kargo-sso-engineering-admin
+subjects:
+  - kind: ServiceAccount
+    name: sso-engineering-global
+    namespace: kargo-global
+roleRef:
+  kind: ClusterRole
+  name: kargo-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sso-vendors-global
+  namespace: kargo-global
+  annotations:
+    rbac.kargo.akuity.io/claim.groups: swiftwad:vendor-acme
+---
+# Vendors get only enough cluster scope to see the project list; everything
+# deeper stays namespace-scoped per project.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kargo-project-lister
+rules:
+  - apiGroups: ["kargo.akuity.io"]
+    resources: ["projects"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kargo-sso-vendors-lister
+subjects:
+  - kind: ServiceAccount
+    name: sso-vendors-global
+    namespace: kargo-global
+roleRef:
+  kind: ClusterRole
+  name: kargo-project-lister
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
