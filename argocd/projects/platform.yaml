@@ -3,6 +3,8 @@ kind: AppProject
 metadata:
   name: platform
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   description: Cluster platform components (ingress, dns, secrets) — internal only
   sourceRepos:
