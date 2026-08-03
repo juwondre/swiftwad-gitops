@@ -13,15 +13,20 @@ spec:
     targetRevision: 1.15.2
     helm:
       valuesObject:
+        # swiftwad.com's live DNS is Cloudflare — the Route53 zone is not in
+        # the public delegation path. Token arrives via ExternalSecret.
         provider:
-          name: aws
+          name: cloudflare
+        env:
+          - name: CF_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: external-dns-cloudflare
+                key: apiToken
         policy: sync
         domainFilters:
           - swiftwad.com
         txtOwnerId: swiftwad-staging
-        serviceAccount:
-          annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::905418331655:role/external-dns-swiftwad-staging
   destination:
     name: in-cluster
     namespace: external-dns
