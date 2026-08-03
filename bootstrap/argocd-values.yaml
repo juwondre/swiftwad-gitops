@@ -61,6 +61,10 @@ server:
       alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:905418331655:certificate/0ae80028-4f78-4e82-ac89-10ec9480ef5f
       alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:us-east-1:905418331655:regional/webacl/argocd-vendor-ui/0ce5aa76-3dd0-4793-9211-3a5585cc519f
       alb.ingress.kubernetes.io/healthcheck-path: /healthz
+      # Kargo's UI reads Dex's OIDC discovery/token endpoints cross-origin
+      # from the browser; ArgoCD's embedded Dex drops web.allowedOrigins, so
+      # the ALB injects the CORS header instead.
+      alb.ingress.kubernetes.io/listener-attributes.HTTPS-443: routing.http.response.access_control_allow_origin.header_value=https://kargo.swiftwad.com
 
 controller:
   replicas: 1
