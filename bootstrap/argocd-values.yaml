@@ -2,25 +2,62 @@
 # helm install argocd argo/argo-cd -n argocd --create-namespace -f bootstrap/argocd-values.yaml
 configs:
   cm:
-    # Local login account for the Acme vendor (SSO group mapping is the
-    # real-project path; a local account keeps the POC self-contained).
+    url: https://argocd.swiftwad.com
+
+    # Local login account for the Acme vendor. Kept as fallback until GitHub
+    # SSO is verified end-to-end, then removed.
     accounts.acme-vendor: login
 
+    # Vendors and staff log in with their GitHub identity; org team
+    # membership arrives as groups ("swiftwad:<team-slug>") for RBAC.
+    # Credentials come from Secrets Manager via ExternalSecret
+    # argocd-dex-github (label app.kubernetes.io/part-of: argocd).
+    dex.config: |
+      connectors:
+        - type: github
+          id: github
+          name: GitHub
+          config:
+            clientID: $argocd-dex-github:clientID
+            clientSecret: $argocd-dex-github:clientSecret
+            orgs:
+              - name: swiftwad
+            teamNameField: slug
+
   params:
-    # POC: no ingress/TLS in front, access via port-forward.
+    # TLS terminates at the ALB; plain HTTP between ALB and argocd-server.
     server.insecure: true
 
   rbac:
-    # Vendors get read + log tailing on their own project's apps, nothing else.
+    # Vendors get read + log tailing on their own project's apps, nothing
+    # else. policy.default stays empty: an authenticated GitHub user with no
+    # mapped team gets nothing.
     policy.csv: |
       p, role:vendor-readonly, applications, get, vendor-acme/*, allow
       p, role:vendor-readonly, logs, get, vendor-acme/*, allow
-      g, vendor-acme-users, role:vendor-readonly
+      p, role:release-manager, applications, *, vendor-acme/*, allow
+      p, role:release-manager, logs, get, vendor-acme/*, allow
+      g, swiftwad:vendor-acme, role:vendor-readonly
+      g, swiftwad:engineering, role:release-manager
       g, acme-vendor, role:vendor-readonly
     policy.default: ""
+    scopes: "[groups]"
 
 server:
-  replicas: 1
+  replicas: 2
+
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    hostname: argocd.swiftwad.com
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:905418331655:certificate/0ae80028-4f78-4e82-ac89-10ec9480ef5f
+      alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:us-east-1:905418331655:regional/webacl/argocd-vendor-ui/0ce5aa76-3dd0-4793-9211-3a5585cc519f
+      alb.ingress.kubernetes.io/healthcheck-path: /healthz
 
 controller:
   replicas: 1
