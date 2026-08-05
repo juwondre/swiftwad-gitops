@@ -80,7 +80,7 @@ spec:
                 uid: platform-metrics
                 access: proxy
                 # AMP query endpoint from `terraform output observability`.
-                url: __AMP_QUERY_URL__
+                url: https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-d75b5ee7-bed1-43ef-9c0e-ca00d6101134/
                 isDefault: true
                 jsonData:
                   httpMethod: POST
