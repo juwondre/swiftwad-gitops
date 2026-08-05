@@ -1,0 +1,10 @@
+# The dashboard ConfigMaps below are applied by the ROOT app and target this
+# namespace, but the namespace itself is otherwise only created when the
+# Grafana Application syncs — a deadlock (root fails on the ConfigMaps, so the
+# AppProject/Application changes never land). Root creates it first instead.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
