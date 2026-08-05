@@ -1,0 +1,96 @@
+# Alertmanager: routes by namespace so a vendor's alerts reach the vendor, not
+# your on-call. Deployed standalone (the Prometheus agent doesn't evaluate
+# rules — AMP does, and sends here).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alertmanager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: alertmanager
+    targetRevision: 1.13.0
+    helm:
+      valuesObject:
+        extraSecretMounts:
+          - name: alert-destinations
+            mountPath: /etc/alertmanager/secrets
+            secretName: alert-destinations
+            readOnly: true
+        config:
+          global:
+            resolve_timeout: 5m
+          # Route on the namespace label every alert carries: platform
+          # components page the platform team; a service's alerts go to that
+          # service's channel; everything else falls through to default.
+          route:
+            receiver: platform-default
+            group_by: ["alertname", "namespace"]
+            group_wait: 30s
+            group_interval: 5m
+            repeat_interval: 4h
+            routes:
+              - receiver: platform-critical
+                matchers: ["severity = critical"]
+                continue: false
+              - receiver: vendor-sample-api
+                matchers: ["namespace = sample-api"]
+          receivers:
+            - name: platform-default
+              slack_configs:
+                - api_url_file: /etc/alertmanager/secrets/slackWebhookUrl
+                  channel: "#platform-alerts"
+                  title: '{{ .CommonLabels.alertname }} ({{ .CommonLabels.namespace }})'
+                  text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+            - name: platform-critical
+              slack_configs:
+                - api_url_file: /etc/alertmanager/secrets/slackWebhookUrl
+                  channel: "#platform-critical"
+                  title: 'CRITICAL — {{ .CommonLabels.alertname }}'
+                  text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+              # Uncomment once the PagerDuty routing key is stored:
+              # pagerduty_configs:
+              #   - routing_key_file: /etc/alertmanager/secrets/pagerdutyRoutingKey
+            - name: vendor-sample-api
+              slack_configs:
+                - api_url_file: /etc/alertmanager/secrets/slackWebhookUrl
+                  channel: "#vendor-acme-alerts"
+                  title: '{{ .CommonLabels.alertname }} — sample-api'
+                  text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+  destination:
+    name: in-cluster
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: alert-destinations
+  namespace: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: alert-destinations
+    creationPolicy: Owner
+  data:
+    - secretKey: slackWebhookUrl
+      remoteRef:
+        key: platform/alert-destinations
+        property: slackWebhookUrl
+    - secretKey: pagerdutyRoutingKey
+      remoteRef:
+        key: platform/alert-destinations
+        property: pagerdutyRoutingKey
