@@ -12,6 +12,10 @@ spec:
     - https://aws.github.io/eks-charts
     - https://kubernetes-sigs.github.io/external-dns/
     - https://charts.external-secrets.io
+    # observability (phase 1)
+    - https://prometheus-community.github.io/helm-charts
+    - https://fluent.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
   destinations:
     - name: in-cluster
       namespace: "*"
