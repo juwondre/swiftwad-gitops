@@ -29,7 +29,7 @@ spec:
               eks.amazonaws.com/role-arn: arn:aws:iam::905418331655:role/amp-write-swiftwad-staging
           prometheusSpec:
             remoteWrite:
-              - url: __AMP_REMOTE_WRITE_URL__
+              - url: https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-d75b5ee7-bed1-43ef-9c0e-ca00d6101134/api/v1/remote_write
                 sigv4:
                   region: us-east-1
             # Discover ServiceMonitors from every namespace, including vendors'.
