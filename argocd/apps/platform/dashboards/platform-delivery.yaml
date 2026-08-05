@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-platform-delivery
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: "Platform"
+data:
+  platform-delivery.json: |
+    {
+      "title": "Platform — delivery health",
+      "uid": "platform-delivery",
+      "tags": ["platform"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "refresh": "1m",
+      "time": { "from": "now-24h", "to": "now" },
+      "templating": { "list": [] },
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Applications out of sync",
+          "description": "Anything not Synced is drift or a failed promotion.",
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+          "targets": [ { "expr": "count(argocd_app_info{sync_status!=\"Synced\"}) or vector(0)", "refId": "A" } ]
+        },
+        {
+          "type": "stat",
+          "title": "Applications unhealthy",
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+          "targets": [ { "expr": "count(argocd_app_info{health_status!=\"Healthy\"}) or vector(0)", "refId": "A" } ]
+        },
+        {
+          "type": "stat",
+          "title": "Deploys (24h)",
+          "description": "Sync operations across all applications — the platform's deployment frequency.",
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "targets": [ { "expr": "sum(increase(argocd_app_sync_total[24h]))", "refId": "A" } ]
+        },
+        {
+          "type": "stat",
+          "title": "Failed syncs (24h)",
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } } },
+          "targets": [ { "expr": "sum(increase(argocd_app_sync_total{phase=~\"Failed|Error\"}[24h])) or vector(0)", "refId": "A" } ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Deployment frequency",
+          "description": "Sync rate per application — vendor delivery cadence at a glance.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "targets": [ { "expr": "sum by (name) (increase(argocd_app_sync_total[1h]))", "legendFormat": "{{name}}", "refId": "A" } ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Reconciliation latency (p95)",
+          "description": "How long ArgoCD takes to reconcile — early warning of a struggling control plane.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "targets": [ { "expr": "histogram_quantile(0.95, sum by (le) (rate(argocd_app_reconcile_bucket[5m])))", "legendFormat": "p95", "refId": "A" } ]
+        },
+        {
+          "type": "table",
+          "title": "Application inventory",
+          "description": "Every app, its project, and current state.",
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 13 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "targets": [ { "expr": "argocd_app_info", "format": "table", "instant": true, "refId": "A" } ],
+          "transformations": [ { "id": "organize", "options": { "excludeByName": {
+            "Time": true, "Value": true, "__name__": true, "job": true, "instance": true } } } ]
+        }
+      ]
+    }

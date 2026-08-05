@@ -1,0 +1,143 @@
+# Grafana: GitHub SSO, AMP + CloudWatch datasources, dashboards provisioned
+# from ConfigMaps in this repo (argocd/apps/platform/dashboards/).
+#
+# Self-hosted rather than Amazon Managed Grafana: same GitOps pattern as every
+# other platform component, dashboards live in git, and no per-user licence
+# cost for vendors. Trade-off in the folder-permission note below.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    targetRevision: 8.8.5
+    helm:
+      valuesObject:
+        serviceAccount:
+          create: true
+          name: grafana
+          annotations:
+            eks.amazonaws.com/role-arn: arn:aws:iam::905418331655:role/grafana-swiftwad-staging
+
+        # Stateless: dashboards come from git, users come from GitHub. Nothing
+        # here is worth persisting — the pod is disposable like everything else.
+        persistence:
+          enabled: false
+
+        envValueFrom:
+          GF_AUTH_GITHUB_CLIENT_ID:
+            secretKeyRef: { name: grafana-github-oauth, key: clientID }
+          GF_AUTH_GITHUB_CLIENT_SECRET:
+            secretKeyRef: { name: grafana-github-oauth, key: clientSecret }
+
+        grafana.ini:
+          server:
+            root_url: https://grafana.swiftwad.com
+          auth:
+            disable_login_form: false      # keep local admin as break-glass
+          auth.github:
+            enabled: true
+            allow_sign_up: true
+            scopes: user:email,read:org
+            auth_url: https://github.com/login/oauth/authorize
+            token_url: https://github.com/login/oauth/access_token
+            api_url: https://api.github.com/user
+            # Only members of the org can sign in at all.
+            allowed_organizations: swiftwad
+            # GitHub team slugs arrive as "@org/team"; map them to Grafana roles.
+            role_attribute_path: >-
+              contains(groups[*], '@swiftwad/platform') && 'Admin' ||
+              contains(groups[*], '@swiftwad/engineering') && 'Editor' ||
+              'Viewer'
+            role_attribute_strict: false
+          users:
+            auto_assign_org_role: Viewer   # unmapped org members see, never edit
+
+        # Sidecar loads any ConfigMap labelled grafana_dashboard, placing it in
+        # the folder named by its grafana_folder annotation.
+        sidecar:
+          dashboards:
+            enabled: true
+            label: grafana_dashboard
+            folderAnnotation: grafana_folder
+            provider:
+              foldersFromFilesStructure: true
+          datasources:
+            enabled: false
+
+        datasources:
+          datasources.yaml:
+            apiVersion: 1
+            datasources:
+              - name: Prometheus
+                type: prometheus
+                uid: platform-metrics
+                access: proxy
+                # AMP query endpoint from `terraform output observability`.
+                url: __AMP_QUERY_URL__
+                isDefault: true
+                jsonData:
+                  httpMethod: POST
+                  sigV4Auth: true
+                  sigV4AuthType: default     # picks up the pod's IRSA credentials
+                  sigV4Region: us-east-1
+              - name: CloudWatch Logs
+                type: cloudwatch
+                uid: platform-logs
+                jsonData:
+                  authType: default
+                  defaultRegion: us-east-1
+
+        ingress:
+          enabled: true
+          ingressClassName: alb
+          hosts:
+            - grafana.swiftwad.com
+          annotations:
+            alb.ingress.kubernetes.io/scheme: internet-facing
+            alb.ingress.kubernetes.io/target-type: ip
+            alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+            alb.ingress.kubernetes.io/ssl-redirect: "443"
+            alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:905418331655:certificate/0ae80028-4f78-4e82-ac89-10ec9480ef5f
+            alb.ingress.kubernetes.io/group.name: platform   # share one ALB with the other UIs
+  destination:
+    name: in-cluster
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: grafana-github-oauth
+  namespace: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: grafana-github-oauth
+    creationPolicy: Owner
+  data:
+    - secretKey: clientID
+      remoteRef:
+        key: grafana/github-oauth
+        property: clientID
+    - secretKey: clientSecret
+      remoteRef:
+        key: grafana/github-oauth
+        property: clientSecret
