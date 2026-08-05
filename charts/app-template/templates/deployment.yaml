@@ -41,8 +41,16 @@ spec:
             - name: http
               containerPort: {{ .Values.containerPort }}
               protocol: TCP
-          {{- if or .Values.env .Values.externalSecrets }}
+          {{- if or .Values.env .Values.externalSecrets .Values.tracing.enabled }}
           env:
+            {{- if .Values.tracing.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.tracing.endpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ include "app.name" . }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace={{ .Values.app.team }},deployment.environment={{ .Values.env.APP_ENV | default "unknown" }}"
+            {{- end }}
             {{- range $name, $value := .Values.env }}
             - name: {{ $name }}
               value: {{ $value | quote }}

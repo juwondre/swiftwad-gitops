@@ -1,0 +1,79 @@
+# ADOT collector: receives OTLP from workloads, exports to X-Ray. Vendors
+# instrument with vanilla OpenTelemetry SDKs and read the endpoint the chart
+# injects (OTEL_EXPORTER_OTLP_ENDPOINT) — no per-app collector config.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: adot-collector
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.108.0
+    helm:
+      valuesObject:
+        mode: deployment
+        image:
+          repository: public.ecr.aws/aws-observability/aws-otel-collector
+          tag: v0.42.0
+        command:
+          name: /awscollector
+        serviceAccount:
+          create: true
+          name: adot-collector
+          annotations:
+            eks.amazonaws.com/role-arn: arn:aws:iam::905418331655:role/adot-swiftwad-staging
+        config:
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+          processors:
+            batch:
+              timeout: 5s
+            # Tail sampling keeps every error and slow trace, samples the rest —
+            # full-fidelity tracing gets expensive fast at real traffic.
+            tail_sampling:
+              decision_wait: 10s
+              policies:
+                - name: errors
+                  type: status_code
+                  status_code: { status_codes: [ERROR] }
+                - name: slow
+                  type: latency
+                  latency: { threshold_ms: 1000 }
+                - name: sample-rest
+                  type: probabilistic
+                  probabilistic: { sampling_percentage: 10 }
+          exporters:
+            awsxray:
+              region: us-east-1
+          service:
+            pipelines:
+              traces:
+                receivers: [otlp]
+                processors: [tail_sampling, batch]
+                exporters: [awsxray]
+        ports:
+          otlp:
+            enabled: true
+            containerPort: 4317
+            servicePort: 4317
+          otlp-http:
+            enabled: true
+            containerPort: 4318
+            servicePort: 4318
+  destination:
+    name: in-cluster
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

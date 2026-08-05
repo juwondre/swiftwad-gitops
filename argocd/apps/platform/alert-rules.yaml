@@ -1,0 +1,73 @@
+# Platform alert rules. Deliberately few and high-signal: each one means
+# someone should look, and each has an owner via the namespace label.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-rules
+  namespace: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  labels:
+    release: prometheus-agent
+spec:
+  groups:
+    - name: delivery
+      rules:
+        - alert: ApplicationUnhealthy
+          expr: argocd_app_info{health_status!~"Healthy|Progressing"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            description: "ArgoCD application {{ $labels.name }} has been {{ $labels.health_status }} for 15m."
+        - alert: ApplicationOutOfSync
+          expr: argocd_app_info{sync_status!="Synced"} == 1
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            description: "{{ $labels.name }} has been out of sync for 30m — drift, or a promotion that never applied."
+
+    - name: workloads
+      rules:
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            description: "{{ $labels.namespace }}/{{ $labels.pod }} restarted more than 3 times in 15m."
+        - alert: PodNotReady
+          expr: kube_pod_status_ready{condition="false"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            description: "{{ $labels.namespace }}/{{ $labels.pod }} has been not-ready for 15m."
+        - alert: ContainerMemoryNearLimit
+          expr: |
+            sum by (namespace, pod) (container_memory_working_set_bytes{container!=""})
+            / sum by (namespace, pod) (kube_pod_container_resource_limits{resource="memory"}) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            description: "{{ $labels.namespace }}/{{ $labels.pod }} is above 90% of its memory limit — an OOM kill is next."
+
+    - name: platform-capacity
+      rules:
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            description: "Node {{ $labels.node }} has been NotReady for 10m."
+        - alert: NodeDiskPressure
+          expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            description: "Node {{ $labels.node }} reports disk pressure."

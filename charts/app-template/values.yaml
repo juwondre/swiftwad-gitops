@@ -49,6 +49,12 @@ resources:
     cpu: 500m
     memory: 256Mi
 
+# Tracing: when enabled the platform injects the OTLP endpoint and service
+# name, so a vanilla OpenTelemetry SDK exports traces with no app config.
+tracing:
+  enabled: false
+  endpoint: http://adot-collector-opentelemetry-collector.observability.svc:4317
+
 # Metrics scraping: when enabled the chart emits a ServiceMonitor so the
 # platform's Prometheus agent discovers the service automatically. Requires the
 # app to expose Prometheus metrics on the path below (conformance doc §9).
