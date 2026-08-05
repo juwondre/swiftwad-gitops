@@ -1,0 +1,92 @@
+# Phase 1 observability collectors. Backends (AMP, CloudWatch) are AWS-managed
+# and created by Terraform; these are the in-cluster agents that feed them.
+#
+# Values carrying account-specific ARNs/URLs come from the infra repo's
+# `observability` output — fill them when enabling.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-agent
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: platform
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 68.3.0
+    helm:
+      valuesObject:
+        # Agent mode: scrape and remote-write, keep nothing locally — clusters
+        # stay disposable, retention/HA are AMP's problem.
+        prometheus:
+          agentMode: true
+          serviceAccount:
+            create: true
+            name: prometheus-agent
+            annotations:
+              eks.amazonaws.com/role-arn: arn:aws:iam::905418331655:role/amp-write-swiftwad-staging
+          prometheusSpec:
+            remoteWrite:
+              - url: __AMP_REMOTE_WRITE_URL__
+                sigv4:
+                  region: us-east-1
+            # Discover ServiceMonitors from every namespace, including vendors'.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+        # Grafana/Alertmanager live outside the cluster (Amazon Managed Grafana
+        # + Alertmanager in AMP), so the bundled ones stay off.
+        grafana:
+          enabled: false
+        alertmanager:
+          enabled: false
+  destination:
+    name: in-cluster
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true    # CRDs in this chart exceed the annotation size limit
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluent-bit
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: platform
+  source:
+    repoURL: https://fluent.github.io/helm-charts
+    chart: fluent-bit
+    targetRevision: 0.48.5
+    helm:
+      valuesObject:
+        serviceAccount:
+          create: true
+          name: fluent-bit
+          annotations:
+            eks.amazonaws.com/role-arn: arn:aws:iam::905418331655:role/fluentbit-swiftwad-staging
+        config:
+          outputs: |
+            [OUTPUT]
+                Name cloudwatch_logs
+                Match kube.*
+                region us-east-1
+                log_group_name /swiftwad/workloads
+                log_stream_prefix fluentbit-
+                auto_create_group false
+  destination:
+    name: in-cluster
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

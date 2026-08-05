@@ -88,3 +88,9 @@ Copy into the onboarding issue and check off:
 - [ ] Logs are stdout/stderr, structured
 - [ ] Initial CPU/memory estimates provided
 - [ ] Values file created from the app-template chart and reviewed by platform team
+
+### 9. Observability (required as of the platform's observability phase)
+
+- **Metrics**: expose Prometheus-format metrics on `/metrics` (port as the app's HTTP port). Set `metrics.enabled: true` in your values file and the platform scrapes you automatically — no configuration on your side beyond exposing the endpoint.
+- **Traces**: read the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable the platform injects and propagate W3C `traceparent` headers on outbound calls. Any vanilla OpenTelemetry SDK does both by default.
+- **Logs**: already covered by §7 (stdout/stderr, structured JSON) — the platform ships them to a queryable store; include a `trace_id` field where you have one and logs correlate with traces automatically.
