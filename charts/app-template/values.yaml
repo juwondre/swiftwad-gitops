@@ -49,6 +49,14 @@ resources:
     cpu: 500m
     memory: 256Mi
 
+# Metrics scraping: when enabled the chart emits a ServiceMonitor so the
+# platform's Prometheus agent discovers the service automatically. Requires the
+# app to expose Prometheus metrics on the path below (conformance doc §9).
+metrics:
+  enabled: false
+  path: /metrics
+  interval: 30s
+
 # Plain (non-secret) environment variables.
 # env:
 #   LOG_LEVEL: info
