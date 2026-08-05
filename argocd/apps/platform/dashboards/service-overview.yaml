@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-service-overview
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: "Services"
+data:
+  service-overview.json: |
+    {
+      "title": "Service overview",
+      "uid": "service-overview",
+      "tags": ["services", "vendor"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "refresh": "1m",
+      "time": { "from": "now-6h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "label": "Service",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+            "query": "label_values(kube_pod_info, namespace)",
+            "refresh": 1,
+            "includeAll": false,
+            "multi": false
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Pods ready",
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "targets": [ { "expr": "sum(kube_pod_status_ready{namespace=\"$namespace\",condition=\"true\"})", "refId": "A" } ]
+        },
+        {
+          "type": "stat",
+          "title": "Restarts (1h)",
+          "description": "Crash-looping or OOM-killed containers show here first.",
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 } ] } } },
+          "targets": [ { "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\"}[1h])) or vector(0)", "refId": "A" } ]
+        },
+        {
+          "type": "stat",
+          "title": "CPU in use (cores)",
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "targets": [ { "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",container!=\"\"}[5m]))", "refId": "A" } ]
+        },
+        {
+          "type": "stat",
+          "title": "Memory in use",
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "fieldConfig": { "defaults": { "unit": "bytes" } },
+          "targets": [ { "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\",container!=\"\"})", "refId": "A" } ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Request rate by status",
+          "description": "Requires the service to expose Prometheus metrics per conformance §9 (metrics.enabled in its values file). Empty here means the app isn't instrumented yet.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "targets": [ { "expr": "sum by (status) (rate(http_requests_total{namespace=\"$namespace\"}[5m]))", "legendFormat": "{{status}}", "refId": "A" } ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Request latency (p95)",
+          "description": "Also depends on app instrumentation — see conformance §9.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "fieldConfig": { "defaults": { "unit": "s" } },
+          "targets": [ { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\"}[5m])))", "legendFormat": "p95", "refId": "A" } ]
+        },
+        {
+          "type": "timeseries",
+          "title": "CPU vs limit",
+          "description": "Approaching the limit means throttling — raise resources in the values file by PR.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "targets": [
+            { "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",container!=\"\"}[5m]))", "legendFormat": "in use", "refId": "A" },
+            { "expr": "sum(kube_pod_container_resource_limits{namespace=\"$namespace\",resource=\"cpu\"})", "legendFormat": "limit", "refId": "B" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory vs limit",
+          "description": "Crossing the limit is an OOM kill — the restart panel above will confirm.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+          "datasource": { "type": "prometheus", "uid": "platform-metrics" },
+          "fieldConfig": { "defaults": { "unit": "bytes" } },
+          "targets": [
+            { "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\",container!=\"\"})", "legendFormat": "in use", "refId": "A" },
+            { "expr": "sum(kube_pod_container_resource_limits{namespace=\"$namespace\",resource=\"memory\"})", "legendFormat": "limit", "refId": "B" }
+          ]
+        }
+      ]
+    }
