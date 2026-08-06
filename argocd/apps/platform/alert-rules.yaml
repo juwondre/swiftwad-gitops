@@ -29,6 +29,17 @@ spec:
           annotations:
             description: "{{ $labels.name }} has been out of sync for 30m — drift, or a promotion that never applied."
 
+        - alert: ArgoCDRepoSyncStale
+          # The canary for an expired gitops read token: ArgoCD keeps serving
+          # the last known state, so nothing looks broken — new commits just
+          # stop arriving. See docs/OPERATIONS.md.
+          expr: argocd_app_info{name="root",sync_status="Unknown"} == 1
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            description: "Root application has not reconciled for an hour — likely an expired or revoked gitops repository credential. Deployments are silently not landing."
+
     - name: workloads
       rules:
         - alert: PodCrashLooping
