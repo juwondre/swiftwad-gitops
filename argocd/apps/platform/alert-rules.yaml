@@ -40,6 +40,17 @@ spec:
           annotations:
             description: "Root application has not reconciled for an hour — likely an expired or revoked gitops repository credential. Deployments are silently not landing."
 
+        - alert: ApplicationProgressingTooLong
+          # Found by the containment drill: a crash-looping NEW replica behind a
+          # healthy OLD one leaves the app "Progressing", never "Degraded" — so
+          # a health-status alert alone misses a failed rollout entirely.
+          expr: argocd_app_info{health_status="Progressing"} == 1
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            description: "{{ $labels.name }} has been Progressing for 30m — a rollout that never completed (new replicas failing readiness while old ones keep serving)."
+
     - name: workloads
       rules:
         - alert: PodCrashLooping
