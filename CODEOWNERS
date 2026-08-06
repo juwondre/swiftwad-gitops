@@ -1,0 +1,9 @@
+# Human changes to deployment state and platform config require review.
+# Kargo's automated image-tag commits are exempt: it pushes with its own deploy
+# key, which CODEOWNERS does not gate (see docs/BRANCHING.md).
+
+/envs/staging/   @juwondre
+/charts/         @juwondre
+/argocd/         @juwondre
+/kargo/          @juwondre
+/bootstrap/      @juwondre
