@@ -49,6 +49,12 @@ configs:
 server:
   replicas: 2
 
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+
   ingress:
     enabled: true
     ingressClassName: alb
@@ -68,3 +74,15 @@ server:
 
 controller:
   replicas: 1
+
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+
+repoServer:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
