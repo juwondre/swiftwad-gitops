@@ -24,9 +24,10 @@ spec:
         config:
           global:
             resolve_timeout: 5m
-          # Route on the namespace label every alert carries: platform
-          # components page the platform team; a service's alerts go to that
-          # service's channel; everything else falls through to default.
+          # Alerts are an INTERNAL concern — vendors watch dashboards and their
+          # own app's health, but paging is the platform team's job. Routing
+          # splits by severity only; the namespace label stays in the grouping
+          # so an alert still says which service it came from.
           route:
             receiver: platform-default
             group_by: ["alertname", "namespace"]
@@ -37,8 +38,6 @@ spec:
               - receiver: platform-critical
                 matchers: ["severity = critical"]
                 continue: false
-              - receiver: vendor-sample-api
-                matchers: ["namespace = sample-api"]
           receivers:
             - name: platform-default
               slack_configs:
@@ -55,12 +54,6 @@ spec:
               # Uncomment once the PagerDuty routing key is stored:
               # pagerduty_configs:
               #   - routing_key_file: /etc/alertmanager/secrets/pagerdutyRoutingKey
-            - name: vendor-sample-api
-              slack_configs:
-                - api_url_file: /etc/alertmanager/secrets/slackWebhookUrl
-                  channel: "#vendor-acme-alerts"
-                  title: '{{ .CommonLabels.alertname }} — sample-api'
-                  text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
   destination:
     name: in-cluster
     namespace: observability

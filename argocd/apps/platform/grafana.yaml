@@ -135,9 +135,9 @@ spec:
   data:
     - secretKey: clientID
       remoteRef:
-        key: grafana/github-oauth
+        key: platform/grafana-github-oauth
         property: clientID
     - secretKey: clientSecret
       remoteRef:
-        key: grafana/github-oauth
+        key: platform/grafana-github-oauth
         property: clientSecret
